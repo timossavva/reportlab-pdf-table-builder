@@ -35,19 +35,22 @@ USER_CAN_VIEW_PRICES = None
 
 WATERMARK = None
 LOGO_PATH = None
+PDF_TAB_TITLE = 'PDF Tab Title'
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
 
 class ReportLabPDFBuilder:
 
-    def __init__(self, logo_path=None, watermark=None):
+    def __init__(self, logo_path=None, watermark=None, pdf_tab_title=PDF_TAB_TITLE):
         global WATERMARK
         global LOGO_PATH
         global BODY_STYLE
+        global PDF_TAB_TITLE
 
         LOGO_PATH = logo_path
         WATERMARK = watermark
         BODY_STYLE = get_body_style()
+        PDF_TAB_TITLE = pdf_tab_title
 
         self.pdf_buffer = BytesIO()
         self.pdf = BaseDocTemplate(self.pdf_buffer, pagesize=A4)
@@ -240,6 +243,7 @@ def pfd_table_builder(data, fonts=None):
 
 
 def header_and_footer(canvas, pdf):
+    canvas.setTitle(PDF_TAB_TITLE)
     # LOGO
     # print('LOGO_PATH', LOGO_PATH)
     if LOGO_PATH:
