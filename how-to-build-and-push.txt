@@ -1,0 +1,14 @@
+# First time only on virtual environment
+pip install --upgrade setuptools wheel
+pip install --upgrade twine
+
+# To build
+python setup.py sdist
+OR
+python setup.py sdist bdist_wheel
+
+# To push (username: __token__ password: use the token value)
+twine upload --skip-existing dist/*
+
+# If you get the error that the package already exists:
+#    change your version in setup.py
