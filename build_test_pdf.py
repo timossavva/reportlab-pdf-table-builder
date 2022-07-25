@@ -56,6 +56,6 @@ data = [
 
 table = pfd_table_builder(data)
 
-pdfbuilder = ReportLabPDFBuilder()
+pdfbuilder = ReportLabPDFBuilder(logo_path='logo.png')
 pdfbuilder.add_to_story(table)
 pdfbuilder.save_pdf_file('test_pdf.pdf')

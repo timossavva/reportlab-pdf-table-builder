@@ -14,47 +14,63 @@ from reportlab.platypus import BaseDocTemplate, Image
 from reportlab.platypus import Frame, PageTemplate
 from reportlab.platypus import Paragraph, Table, TableStyle
 
+from pdf_table_builder.helpers import calculate_image_dimensions_and_keep_aspect_ratio
+
 styles = getSampleStyleSheet()
 styleN = styles['Normal']
 styleH = styles['Heading1']
 
-DESIRED_PHOTO_WIDTH = A4[0] - 100
+DESIRED_PHOTO_WIDTH = A4[0] - 160
 DESIRED_PHOTO_HEIGHT = A4[1] / 2 - 170
 
 BASIC_MARGIN = 30
-LEFT_MARGIN = BASIC_MARGIN
-RIGHT_MARGIN = BASIC_MARGIN
-TOP_MARGIN = BASIC_MARGIN
-BOTTOM_MARGIN = BASIC_MARGIN
 BODY_FONT_SIZE = 8
 PAGE_WIDTH = 530
 PAGE_HEIGHT = 750
 LINE_Y = 730
-BODY_STYLE = None
-USER_CAN_VIEW_PRICES = None
+
+FRAME_X1 = 30
+FRAME_Y1 = 30
+FRAME_BASIC_PADDING = 47
+FRAME_LEFT_PADDING = FRAME_BASIC_PADDING
+FRAME_BOTTOM_PADDING = FRAME_BASIC_PADDING
+FRAME_RIGHT_PADDING = FRAME_BASIC_PADDING
+FRAME_TOP_PADDING = FRAME_BASIC_PADDING + 30
 
 WATERMARK = None
 LOGO_PATH = None
+LOGO_BASE_WIDTH = 180
 PDF_TAB_TITLE = 'PDF Tab Title'
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
 
 class ReportLabPDFBuilder:
 
-    def __init__(self, logo_path=None, watermark=None, pdf_tab_title=PDF_TAB_TITLE):
+    def __init__(self, logo_path=None, watermark=None, pdf_tab_title=PDF_TAB_TITLE, logo_base_width=LOGO_BASE_WIDTH):
         global WATERMARK
         global LOGO_PATH
         global BODY_STYLE
         global PDF_TAB_TITLE
+        global LOGO_BASE_WIDTH
 
         LOGO_PATH = logo_path
         WATERMARK = watermark
         BODY_STYLE = get_body_style()
         PDF_TAB_TITLE = pdf_tab_title
+        LOGO_BASE_WIDTH = logo_base_width
 
         self.pdf_buffer = BytesIO()
         self.pdf = BaseDocTemplate(self.pdf_buffer, pagesize=A4)
-        frame = Frame(LEFT_MARGIN, BOTTOM_MARGIN, PAGE_WIDTH, 687, showBoundary=1)
+        frame = Frame(
+            FRAME_X1,
+            FRAME_Y1,
+            width=PAGE_WIDTH,
+            height=PAGE_HEIGHT,
+            leftPadding=FRAME_LEFT_PADDING,
+            bottomPadding=FRAME_BOTTOM_PADDING,
+            rightPadding=FRAME_RIGHT_PADDING,
+            topPadding=FRAME_TOP_PADDING
+        )
         template = PageTemplate(id='all_pages', frames=frame, onPage=header_and_footer)
         self.pdf.addPageTemplates([template])
         self.story = []
@@ -244,14 +260,26 @@ def pfd_table_builder(data, fonts=None):
 
 def header_and_footer(canvas, pdf):
     canvas.setTitle(PDF_TAB_TITLE)
+
     # LOGO
-    # print('LOGO_PATH', LOGO_PATH)
     if LOGO_PATH:
         im = pilim.open(LOGO_PATH)
+        print_width, print_height = calculate_image_dimensions_and_keep_aspect_ratio(
+            img_width=im.size[0],
+            img_height=im.size[1],
+            img_desired_width=LOGO_BASE_WIDTH
+        )
         pil_img = ImageReader(im)
-        canvas.drawImage(pil_img, 350, PAGE_HEIGHT, width=210, height=70, mask='auto')
+        canvas.drawImage(
+            pil_img,
+            PAGE_WIDTH / 2 - 60,
+            PAGE_HEIGHT - print_height + 40,
+            width=print_width,
+            height=print_height,
+            mask='auto'
+        )
 
-    canvas.line(BASIC_MARGIN, LINE_Y, PAGE_WIDTH + BASIC_MARGIN, LINE_Y)
+    # canvas.line(BASIC_MARGIN, LINE_Y, PAGE_WIDTH + BASIC_MARGIN, LINE_Y)
 
     # ----------------------- FOOTER ----------------------- #
     canvas.setFont('Helvetica-Bold', 8)
