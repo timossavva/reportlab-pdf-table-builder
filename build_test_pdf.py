@@ -22,21 +22,22 @@ data = [
         ],
         grid=Grid(line_color=colors.blue, line_width=1),
         # text_color=colors.red
+        valign='MIDDLE'
     ),
     Row(
         columns=[
             Column(content='test2', align=TA_CENTER, background_color=colors.red, text_color=colors.blue),
             Column(content='Panel color outside:'),
-            Column(content='7012 Matt'),
+            Column(content='7012 Matt', valign='BOTTOM'),
             Column(content='$100', align=TA_RIGHT, grid=Grid(line_color=colors.yellow, line_width=2)),
             Column(content='test', align=TA_CENTER, background_color=colors.aqua),
             Column(content='test2', align=TA_CENTER, background_color=colors.red, text_color=colors.white),
             Column(content='test2', align=TA_CENTER, background_color=colors.purple, text_color=colors.red),
 
         ],
-        align=TA_LEFT,
         background_color=colors.green,
         text_color=colors.red,
+        valign='MIDDLE'
     ),
     Row(
         columns=[

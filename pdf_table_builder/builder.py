@@ -1,5 +1,6 @@
 import io
 import os
+from functools import partial
 from io import BytesIO
 
 from PIL import Image as pilim
@@ -31,11 +32,6 @@ LINE_Y = 730
 
 FRAME_X1 = 30
 FRAME_Y1 = 30
-FRAME_BASIC_PADDING = 47
-FRAME_LEFT_PADDING = FRAME_BASIC_PADDING
-FRAME_BOTTOM_PADDING = FRAME_BASIC_PADDING
-FRAME_RIGHT_PADDING = FRAME_BASIC_PADDING
-FRAME_TOP_PADDING = FRAME_BASIC_PADDING + 30
 
 WATERMARK = None
 LOGO_PATH = None
@@ -46,7 +42,9 @@ __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file
 
 class ReportLabPDFBuilder:
 
-    def __init__(self, logo_path=None, watermark=None, pdf_tab_title=PDF_TAB_TITLE, logo_base_width=LOGO_BASE_WIDTH):
+    def __init__(self, logo_path=None, watermark=None, pdf_tab_title=PDF_TAB_TITLE, logo_base_width=LOGO_BASE_WIDTH,
+                 logo_canvas_x=0, logo_canvas_y=0, frame_left_padding=30, frame_right_padding=30, frame_top_padding=30,
+                 frame_bottom_padding=30):
         global WATERMARK
         global LOGO_PATH
         global BODY_STYLE
@@ -66,12 +64,13 @@ class ReportLabPDFBuilder:
             FRAME_Y1,
             width=PAGE_WIDTH,
             height=PAGE_HEIGHT,
-            leftPadding=FRAME_LEFT_PADDING,
-            bottomPadding=FRAME_BOTTOM_PADDING,
-            rightPadding=FRAME_RIGHT_PADDING,
-            topPadding=FRAME_TOP_PADDING
+            leftPadding=frame_left_padding,
+            bottomPadding=frame_bottom_padding,
+            rightPadding=frame_right_padding,
+            topPadding=frame_top_padding
         )
-        template = PageTemplate(id='all_pages', frames=frame, onPage=header_and_footer)
+        header_and_footer_partial = partial(header_and_footer, logo_canvas_x, logo_canvas_y)
+        template = PageTemplate(id='all_pages', frames=frame, onPage=header_and_footer_partial)
         self.pdf.addPageTemplates([template])
         self.story = []
 
@@ -97,7 +96,7 @@ class ReportLabPDFBuilder:
 
 class Row:
     def __init__(self, columns, line=None, grid=None, background_color=None, text_color=None, full_width=False,
-                 align=TA_LEFT):
+                 align=TA_LEFT, valign=None):
         self.columns = columns
         self.line = line
         self.grid = grid
@@ -105,6 +104,7 @@ class Row:
         self.text_color = text_color
         self.align = align
         self.full_width = full_width
+        self.valign = valign  # TOP, MIDDLE, BOTTOM
 
     def get_number_of_columns(self):
         return len(self.columns)
@@ -112,8 +112,8 @@ class Row:
 
 class Column:
 
-    def __init__(self, content, line=None, grid=None, background_color=None, text_color=None, image_width=50,
-                 image_height=50, align=TA_LEFT):
+    def __init__(self, content='', line=None, grid=None, background_color=None, text_color=None, image_width=50,
+                 image_height=50, align=TA_LEFT, valign=None):
         """
 
         :param content: This variable's data will be passed into the Reportlab's Paragraph Class, or if its BytesIO
@@ -133,6 +133,7 @@ class Column:
         self.image_width = image_width
         self.image_height = image_height
         self.align = align
+        self.valign = valign  # TOP, MIDDLE, BOTTOM
 
 
 class Grid:
@@ -252,13 +253,25 @@ def pfd_table_builder(data, fonts=None):
                 # SPAN
                 if row_obj.full_width:
                     table_styles.add('SPAN', (col_ctr, row_ctr), (-1, row_ctr))
-
+                # VALIGN
+                apply_style = False
+                valign = None
+                if col_obj.valign:
+                    apply_style = True
+                    valign = col_obj.valign
+                    print('COL:', valign)
+                elif row_obj.valign:
+                    apply_style = True
+                    valign = row_obj.valign
+                    print('ROW:', valign)
+                if apply_style:
+                    table_styles.add('VALIGN', (col_ctr, row_ctr), (col_ctr, row_ctr), valign)
     t = Table(table_data)
     t.setStyle(table_styles)
     return t
 
 
-def header_and_footer(canvas, pdf):
+def header_and_footer(logo_canvas_x, logo_canvas_y, canvas, pdf):
     canvas.setTitle(PDF_TAB_TITLE)
 
     # LOGO
@@ -272,8 +285,8 @@ def header_and_footer(canvas, pdf):
         pil_img = ImageReader(im)
         canvas.drawImage(
             pil_img,
-            PAGE_WIDTH / 2 - 60,
-            PAGE_HEIGHT - print_height + 40,
+            logo_canvas_x,
+            logo_canvas_y,
             width=print_width,
             height=print_height,
             mask='auto'
