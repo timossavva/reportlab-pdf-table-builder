@@ -56,7 +56,8 @@ data = [
 ]
 
 table = pfd_table_builder(data)
+from reportlab.lib.pagesizes import A4
 
-pdfbuilder = ReportLabPDFBuilder(logo_path='logo.png')
+pdfbuilder = ReportLabPDFBuilder(logo_path='logo.png', logo_canvas_x=60, logo_canvas_y=A4[1] - 80)
 pdfbuilder.add_to_story(table)
 pdfbuilder.save_pdf_file('test_pdf.pdf')

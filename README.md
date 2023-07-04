@@ -4,6 +4,11 @@ A simple pdf table builder using the ReportLab Toolkit
 
 # Example usage
 
+You can run the example.py file to see the result
+```
+python example.py
+```
+
 ```python
 import datetime
 
