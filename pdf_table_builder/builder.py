@@ -26,8 +26,8 @@ DESIRED_PHOTO_HEIGHT = A4[1] / 2 - 170
 
 BASIC_MARGIN = 30
 BODY_FONT_SIZE = 8
-PAGE_WIDTH = 530
-PAGE_HEIGHT = 750
+PAGE_WIDTH = A4[0]
+PAGE_HEIGHT = A4[1]
 LINE_Y = 730
 
 FRAME_X1 = 30
@@ -44,7 +44,7 @@ class ReportLabPDFBuilder:
 
     def __init__(self, logo_path=None, watermark=None, pdf_tab_title=PDF_TAB_TITLE, logo_base_width=LOGO_BASE_WIDTH,
                  logo_canvas_x=0, logo_canvas_y=0, frame_left_padding=30, frame_right_padding=30, frame_top_padding=30,
-                 frame_bottom_padding=30):
+                 frame_bottom_padding=30, have_header_bottom_line=True, company_info=None, footer_text=None, ):
         global WATERMARK
         global LOGO_PATH
         global BODY_STYLE
@@ -59,9 +59,32 @@ class ReportLabPDFBuilder:
 
         self.pdf_buffer = BytesIO()
         self.pdf = BaseDocTemplate(self.pdf_buffer, pagesize=A4)
+
+        logo_print_width = 0
+        logo_print_height = 0
+        if LOGO_PATH:
+            im = pilim.open(LOGO_PATH)
+            logo_print_width, logo_print_height = calculate_image_dimensions_and_keep_aspect_ratio(
+                img_width=im.size[0],
+                img_height=im.size[1],
+                img_desired_width=LOGO_BASE_WIDTH
+            )
+
+        top_y = PAGE_HEIGHT - logo_print_height - 30
+        if company_info:
+            i = 0
+            for value in company_info:
+                if value:
+                    if i > 0:
+                        top_y -= 12
+                    i += 1
+
+        if have_header_bottom_line:
+            top_y -= 12
+
         frame = Frame(
-            FRAME_X1,
-            FRAME_Y1,
+            0,
+            0 - (PAGE_HEIGHT - top_y) + 20,
             width=PAGE_WIDTH,
             height=PAGE_HEIGHT,
             leftPadding=frame_left_padding,
@@ -69,7 +92,17 @@ class ReportLabPDFBuilder:
             rightPadding=frame_right_padding,
             topPadding=frame_top_padding
         )
-        header_and_footer_partial = partial(header_and_footer, logo_canvas_x, logo_canvas_y)
+        header_and_footer_partial = partial(
+            header_and_footer,
+            logo_canvas_x,
+            logo_canvas_y,
+            have_header_bottom_line,
+            top_y,
+            logo_print_width,
+            logo_print_height,
+            company_info,
+            footer_text
+        )
         template = PageTemplate(id='all_pages', frames=frame, onPage=header_and_footer_partial)
         self.pdf.addPageTemplates([template])
         self.story = []
@@ -86,6 +119,11 @@ class ReportLabPDFBuilder:
         pdf_value = self.pdf_buffer.getvalue()
         self.pdf_buffer.close()
         return pdf_value
+
+    def get_pdf_buffer(self):
+        self.pdf.build(self.story)
+        self.pdf_buffer.close()
+        return self.pdf_buffer
 
     def save_pdf_file(self, file_name):
         self.pdf.build(self.story)
@@ -144,6 +182,11 @@ class Grid:
 
 class Line:
     def __init__(self, line_position='LINEBELOW', line_width=0.5, line_color=colors.gray):
+        """
+        :param line_position: Can be LINEBELOW, LINEABOVE, LINEBEFORE, LINEAFTER
+        :param line_width: Can be 0.5, 1, 2 etc.
+        :param line_color: Can be colors.gray, colors.black etc. or HEX color like '#000000'.
+        """
         self.line_position = line_position
         self.line_width = line_width
         self.line_color = line_color
@@ -191,13 +234,15 @@ def pfd_table_builder(data, fonts=None):
                 elif isinstance(col.content, str):
                     _col = Paragraph('{}'.format(col.content, 'N/A'), style)
                 else:
-                    # print("SOMETHING ELSE")
                     _col = col.content
 
                 column_final.append(_col)
 
             table_data.append(column_final)
         else:
+            print("SOMETHING ELSE")
+            print(row_obj)
+
             table_data.append([row_obj])
 
     # ------------------ STYLE
@@ -259,11 +304,9 @@ def pfd_table_builder(data, fonts=None):
                 if col_obj.valign:
                     apply_style = True
                     valign = col_obj.valign
-                    print('COL:', valign)
                 elif row_obj.valign:
                     apply_style = True
                     valign = row_obj.valign
-                    print('ROW:', valign)
                 if apply_style:
                     table_styles.add('VALIGN', (col_ctr, row_ctr), (col_ctr, row_ctr), valign)
     t = Table(table_data)
@@ -271,35 +314,62 @@ def pfd_table_builder(data, fonts=None):
     return t
 
 
-def header_and_footer(logo_canvas_x, logo_canvas_y, canvas, pdf):
+def header_and_footer(logo_canvas_x, logo_canvas_y, have_header_bottom_line, top_y, logo_print_width, logo_print_height,
+                      company_info, footer_text, canvas, pdf):
     canvas.setTitle(PDF_TAB_TITLE)
 
     # LOGO
     if LOGO_PATH:
         im = pilim.open(LOGO_PATH)
-        print_width, print_height = calculate_image_dimensions_and_keep_aspect_ratio(
-            img_width=im.size[0],
-            img_height=im.size[1],
-            img_desired_width=LOGO_BASE_WIDTH
-        )
         pil_img = ImageReader(im)
         canvas.drawImage(
             pil_img,
             logo_canvas_x,
             logo_canvas_y,
-            width=print_width,
-            height=print_height,
+            width=logo_print_width,
+            height=logo_print_height,
             mask='auto'
         )
 
-    # canvas.line(BASIC_MARGIN, LINE_Y, PAGE_WIDTH + BASIC_MARGIN, LINE_Y)
+    # COMPANY'S INFO
+    top_y = PAGE_HEIGHT - logo_print_height - 30
+    if company_info:
+        canvas.setFont('NotoSans', 9)
+        i = 0
+        for value in company_info:
+            if value:
+                if i == 0:
+                    canvas.drawString(BASIC_MARGIN, top_y, value.strip())
+                else:
+                    top_y -= 12
+                    canvas.drawString(BASIC_MARGIN, top_y, value.strip())
+                i += 1
+
+    if have_header_bottom_line:
+        top_y -= 12
+        canvas.line(BASIC_MARGIN, top_y, PAGE_WIDTH - BASIC_MARGIN, top_y)
 
     # ----------------------- FOOTER ----------------------- #
-    canvas.setFont('Helvetica-Bold', 8)
-    # page number
+    bottom_y = 8
+    # Page number.
     page_number_text = "%d" % pdf.page
-    canvas.drawCentredString(295, 8, '-' + page_number_text + '-')
-    # watermark
+    canvas.drawCentredString(295, bottom_y, '-' + page_number_text + '-')
+
+    # Footer text.
+    if footer_text:
+        canvas.setFont('NotoSans', 8)
+        bottom_y += 5 + (len(footer_text) * 12)
+        i = 0
+        for value in footer_text:
+            if value:
+                if i == 0:
+                    canvas.drawString(BASIC_MARGIN, bottom_y, value.strip())
+                else:
+                    bottom_y -= 12
+                    canvas.drawString(BASIC_MARGIN, bottom_y, value.strip())
+                i += 1
+
+    # Watermark.
     if WATERMARK:
         canvas.drawCentredString(507, 8, WATERMARK)
 
